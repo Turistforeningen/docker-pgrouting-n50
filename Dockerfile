@@ -1,11 +1,17 @@
 FROM starefossen/pgrouting:9-2-2
+MAINTAINER Den Norske Turistforening (DNT) <opensource@turistforeningen.no>
 
 ENV N50_BASE "https://s3-eu-west-1.amazonaws.com/turistforeningen/postgis"
 ENV N50_DATE "15-08-04"
 
+# Download pgRouting compatible and pre-processed version of N50 data from S3
 ADD "${N50_BASE}/n50_vegsti-${N50_DATE}.backup" /n50_vegsti.backup
 
+# Add the database init script which will be run when running the Docker Image
+# for the first time. This will not be run if an existing database exists.
+# https://github.com/docker-library/docs/tree/master/postgres#how-to-extend-this-image
 COPY ./n50_init.sh /docker-entrypoint-initdb.d/routingx50.sh
-COPY ./n50_path.sql /docker-entrypoint-initdb.d/routingx50path.sql
 
-#COPY ./n50_vegsti.backup /n50_vegsti.backup
+# Add the psql router function `path` this is the function that does the
+# shortest path routing on the N50 vegsti data.
+COPY ./n50_path.sql /docker-entrypoint-initdb.d/routingx50path.sql
