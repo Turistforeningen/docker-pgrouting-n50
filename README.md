@@ -22,6 +22,26 @@ $ docker pull turistforeningen/pgrouting-n50
 $ docker run --name n50 turistforeningen/pgrouting-n50
 ```
 
+## Update Data
+
+1. Download [N50 data](http://data.kartverket.no/download/content/n50-kartdata-utm33-hele-landet-postgis) from Kartverket.
+2. Extract and copy `n50_custom.backup` to the `./data` directory in this repository.
+3. Import and process `n50_custom.backup`:
+
+```sh
+$ docker-compose run --rm psql ./util/pg_import.sh n50_vegsti ./data/n50_custom.backup
+```
+
+4. Export processed N50 datafile:
+
+```sh
+$ docker-compose run --rm psql ./util/pg_export.sh n50_vegsti
+```
+
+5. Upload the processed N50 datafile AWS S3 bucket.
+6. Update `N50_DATE` in `Dockerfile` and tag the release.
+7. Push master and let Docker Hub do it's magic.
+
 ## Licenses
 
 * [PostgreSQL Docker Image](https://github.com/docker-library/postgres) - MIT
