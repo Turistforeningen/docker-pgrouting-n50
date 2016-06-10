@@ -154,20 +154,6 @@ BEGIN
 
   ' || sql;
 
-  -- sql := 'SELECT
-  --   ogc_fid AS edge_id,
-  --   pgr_dijkstra.id1 AS node_id,
-  --   ST_AsGeoJSON(geometri) AS geometri,
-  --   objtype,
-  --   pgr_dijkstra.cost,
-  --   source,
-  --   target,
-  --   ST_Reverse(geometri) AS flip_geom
-  -- FROM
-  --   pgr_dijkstra(''' || sql || ''', -888, -999, false, false),
-  --   n50.n50_vegsti
-  -- WHERE id2 = ogc_fid ORDER BY seq';
-
   sql := 'SELECT
     ST_LineMerge(ST_Collect(geometri)) AS geom,
     SUM(pgr_dijkstra.cost) AS cost
