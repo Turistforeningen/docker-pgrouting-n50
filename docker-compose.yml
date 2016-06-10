@@ -2,10 +2,10 @@ version: '2'
 
 services:
   postgres:
-    image: starefossen/pgrouting:9-2-2
+    image: turistforeningen/pgrouting-n50:latest
 
   psql:
-    image: starefossen/pgrouting:9-2-2
+    image: turistforeningen/pgrouting-n50:latest
     working_dir: /usr/src/app
     volumes:
       - .:/usr/src/app
