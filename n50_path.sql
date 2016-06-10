@@ -21,6 +21,8 @@ CREATE OR REPLACE FUNCTION path(
   IN path_buffer double precision DEFAULT 2000,
   IN point_buffer double precision DEFAULT 10,
   IN targets integer DEFAULT 1,
+  IN srid_in integer DEFAULT 4326,
+  IN srid_db integer DEFAULT 25833,
   OUT path_id integer,
   OUT cost double precision,
   OUT geom geometry
@@ -36,16 +38,8 @@ DECLARE
   target    record;
   prec1     double precision;
   prec2     double precision;
-  srid_in   smallint;
-  srid_db   smallint;
 
 BEGIN
-  -- SRID for point inputs (WGS 84)
-  srid_in := 4326;
-
-  -- SRID in N50 data (ETRS89 / UTM zone 33N)
-  srid_db := 25833;
-
   -- Find the closest edge (source) near the start (x1, y1)
   point1 := 'ST_Transform(ST_GeometryFromText(
     ''POINT(' || x1 || ' ' || y1 || ')'', ' || srid_in || '
