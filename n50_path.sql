@@ -197,7 +197,6 @@ BEGIN
     -- Return record
     cost := rec.cost;
     geom := rec.geom;
-    RAISE NOTICE '[ROUTING] cost=% length=%', cost, ST_Length(geom);
 
     RETURN NEXT;
 
