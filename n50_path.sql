@@ -79,6 +79,7 @@ BEGIN
   RAISE NOTICE '[ROUTER] target.id=% target.prec=%', rec2.id, rec2.prec;
 
   IF rec1.id IS null OR rec2.id IS null THEN
+    RAISE NOTICE '[ROUTER] source or target is NULL; returning';
     RETURN;
   END IF;
 
@@ -181,7 +182,7 @@ BEGIN
       )
     );
 
-    RAISE NOTICE '[ROUTING] start=% end=%', prec1, prec2;
+    RAISE NOTICE '[ROUTING] start=%, end=%', prec1, prec2;
 
     -- ST_LineSubstring:  2nd arg must be smaller then 3rd arg
     -- ST_Reverse: reverse if we detect that second is smaller than first
@@ -192,7 +193,7 @@ BEGIN
       rec.geom := ST_LineSubstring(rec.geom, prec1, prec2);
     END IF;
 
-    RAISE NOTICE '[ROUTING] cost=% length=%', rec.cost, ST_Length(rec.geom);
+    RAISE NOTICE '[ROUTING] cost=%, length=%', rec.cost, ST_Length(rec.geom);
 
     -- Return record
     cost := rec.cost;
