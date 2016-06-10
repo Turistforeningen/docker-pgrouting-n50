@@ -18,7 +18,8 @@ CREATE OR REPLACE FUNCTION path(
   IN y1 double precision,
   IN x2 double precision,
   IN y2 double precision,
-  IN buffer double precision DEFAULT 10,
+  IN path_buffer double precision DEFAULT 2000,
+  IN point_buffer double precision DEFAULT 10,
   OUT cost double precision,
   OUT geom geometry
 ) RETURNS SETOF record AS
@@ -55,7 +56,7 @@ BEGIN
       ogc_fid AS id,
       ST_LineLocatePoint(geometri, ' || point1 || ') AS prec
     FROM n50.n50_vegsti
-    WHERE geometri && ST_Buffer(' || point1 || ', ' || buffer || ')
+    WHERE geometri && ST_Buffer(' || point1 || ', ' || point_buffer || ')
     ORDER BY ST_Distance(geometri, ' || point1 || ')
     LIMIT 1'
   INTO rec1;
@@ -69,7 +70,7 @@ BEGIN
       ogc_fid AS id,
       ST_LineLocatePoint(geometri, ' || point2 || ') AS prec
     FROM n50.n50_vegsti
-    WHERE geometri && ST_Buffer(' || point2 || ', ' || buffer || ')
+    WHERE geometri && ST_Buffer(' || point2 || ', ' || point_buffer || ')
     ORDER BY ST_Distance(geometri, ' || point2 || ')
     LIMIT 1'
   INTO rec2;
@@ -148,7 +149,7 @@ BEGIN
         )$$, ' || srid_in || '),
         ' || srid_db || '
       )),
-    ' || buffer || '
+    ' || path_buffer || '
   )
 
   ' || sql;
