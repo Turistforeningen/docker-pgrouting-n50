@@ -175,6 +175,13 @@ BEGIN
       RETURN;
     END IF;
 
+    -- If the geometry is not a `LINESTRING` it means `ST_LineMerge` was not
+    -- able to merge path geometry to a contiguous line.
+    IF GeometryType(rec.geom) != 'LINESTRING' THEN
+      RAISE NOTICE '[ROUTER] route geometry is MULTILINE; returning';
+      RETURN;
+    END IF;
+
     prec1 := ST_LineLocatePoint(
       rec.geom, ST_Transform(
         ST_GeometryFromText('POINT(' || x1 || ' ' || y1 || ')', srid_in), srid_db
