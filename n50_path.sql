@@ -1,17 +1,4 @@
---
---DROP FUNCTION path(double precision,
---                   double precision,
---                   double precision,
---                   double precision,
---                   double precision);
-
--- http://workshop.pgrouting.org/chapters/wrapper.html
--- http://lists.osgeo.org/pipermail/pgrouting-users/2012-January/000927.html
--- https://github.com/pgRouting/pgrouting/issues/355
--- http://gis.stackexchange.com/questions/142231
--- http://gis.stackexchange.com/questions/16157
--- http://gis.stackexchange.com/questions/87370
--- http://www.dpriver.com/pp/sqlformat.htm
+-- Shortest path routing function for N50 vegsti data
 
 CREATE OR REPLACE FUNCTION path(
   IN x1 double precision,
