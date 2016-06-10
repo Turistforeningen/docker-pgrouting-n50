@@ -33,15 +33,23 @@ DECLARE
   rec2      record;
   prec1     double precision;
   prec2     double precision;
+  srid_in   smallint;
+  srid_db   smallint;
 
 BEGIN
   -- http://boundlessgeo.com/2011/09/indexed-nearest-neighbour-search-in-postgis/
   -- http://gis.stackexchange.com/questions/34997
 
+  -- SRID for point inputs (WGS 84)
+  srid_in := 4326;
+
+  -- SRID in N50 data (ETRS89 / UTM zone 33N)
+  srid_db := 25833;
+
   -- Start Point
   point1 := 'ST_Transform(ST_GeometryFromText(
-    ''POINT(' || x1 || ' ' || y1 || ')'', 4326
-  ), 32633)';
+    ''POINT(' || x1 || ' ' || y1 || ')'', ' || srid_in || '
+  ), ' || srid_db || ')';
 
   EXECUTE 'SELECT
       ogc_fid AS id,
@@ -54,8 +62,8 @@ BEGIN
 
   -- Stop Point
   point2 := 'ST_Transform(ST_GeometryFromText(
-    ''POINT(' || x2 || ' ' || y2 || ')'', 4326
-  ), 32633)';
+    ''POINT(' || x2 || ' ' || y2 || ')'', ' || srid_in || '
+  ), ' || srid_db || ')';
 
   EXECUTE 'SELECT
       ogc_fid AS id,
@@ -137,8 +145,8 @@ BEGIN
         ST_GeometryFromText($$MULTIPOINT(
           ' || x1 || ' ' || y1 || ',
           ' || x2 || ' ' || y2 || '
-        )$$, 4326),
-        32633
+        )$$, ' || srid_in || '),
+        ' || srid_db || '
       )),
     ' || buffer || '
   )
@@ -172,13 +180,13 @@ BEGIN
 
     prec1 := ST_LineLocatePoint(
       rec.geom, ST_Transform(
-        ST_GeometryFromText('POINT(' || x1 || ' ' || y1 || ')', 4326), 32633
+        ST_GeometryFromText('POINT(' || x1 || ' ' || y1 || ')', srid_in), srid_db
       )
     );
 
     prec2 := ST_LineLocatePoint(
       rec.geom, ST_Transform(
-        ST_GeometryFromText('POINT(' || x2 || ' ' || y2 || ')', 4326), 32633
+        ST_GeometryFromText('POINT(' || x2 || ' ' || y2 || ')', srid_in), srid_db
       )
     );
 
