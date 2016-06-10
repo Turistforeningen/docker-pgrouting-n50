@@ -164,6 +164,10 @@ BEGIN
 
   FOR rec IN EXECUTE sql
   LOOP
+    IF rec.geom IS NULL THEN
+      RAISE NOTICE '[ROUTER] route geometry is NULL; returning';
+      RETURN;
+    END IF;
 
     prec1 := ST_LineLocatePoint(
       rec.geom, ST_Transform(
