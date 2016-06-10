@@ -42,6 +42,15 @@ $ docker-compose run --rm psql ./util/pg_export.sh n50_vegsti
 * Update `N50_DATE` in `Dockerfile` and tag the release.
 * Push master and let Docker Hub do it's magic.
 
+## Testing
+
+```
+$ docker-compose create postgres
+$ docker-compose start postgres
+$ docker-compose run --rm psql -f n50_path.sql
+$ docker-compose run --rm psql -f test.sql
+```
+
 ## Licenses
 
 * [PostgreSQL Docker Image](https://github.com/docker-library/postgres) - MIT
