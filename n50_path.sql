@@ -32,24 +32,21 @@ DECLARE
   point1    text;
   point2    text;
   rec       record;
-  rec1      record;
-  rec2      record;
+  source    record;
+  target    record;
   prec1     double precision;
   prec2     double precision;
   srid_in   smallint;
   srid_db   smallint;
 
 BEGIN
-  -- http://boundlessgeo.com/2011/09/indexed-nearest-neighbour-search-in-postgis/
-  -- http://gis.stackexchange.com/questions/34997
-
   -- SRID for point inputs (WGS 84)
   srid_in := 4326;
 
   -- SRID in N50 data (ETRS89 / UTM zone 33N)
   srid_db := 25833;
 
-  -- Start Point
+  -- Find the closest edge (source) near the start (x1, y1)
   point1 := 'ST_Transform(ST_GeometryFromText(
     ''POINT(' || x1 || ' ' || y1 || ')'', ' || srid_in || '
   ), ' || srid_db || ')';
@@ -61,9 +58,9 @@ BEGIN
     WHERE geometri && ST_Buffer(' || point1 || ', ' || point_buffer || ')
     ORDER BY ST_Distance(geometri, ' || point1 || ')
     LIMIT 1'
-  INTO rec1;
+  INTO source;
 
-  -- Stop Point
+  -- Find the closest edge (target) near the end (x2, y2)
   point2 := 'ST_Transform(ST_GeometryFromText(
     ''POINT(' || x2 || ' ' || y2 || ')'', ' || srid_in || '
   ), ' || srid_db || ')';
@@ -75,67 +72,79 @@ BEGIN
     WHERE geometri && ST_Buffer(' || point2 || ', ' || point_buffer || ')
     ORDER BY ST_Distance(geometri, ' || point2 || ')
     LIMIT 1'
-  INTO rec2;
+  INTO target;
 
-  RAISE NOTICE '[ROUTER] source.id=% source.prec=%', rec1.id, rec1.prec;
-  RAISE NOTICE '[ROUTER] target.id=% target.prec=%', rec2.id, rec2.prec;
+  RAISE NOTICE '[ROUTER] source.id=% source.prec=%', source.id, source.prec;
+  RAISE NOTICE '[ROUTER] target.id=% target.prec=%', target.id, target.prec;
 
-  IF rec1.id IS null OR rec2.id IS null THEN
+  -- Return if we could not find source or target edges
+  IF source.id IS null OR target.id IS null THEN
     RAISE NOTICE '[ROUTER] source or target is NULL; returning';
     RETURN;
   END IF;
+
+  -- Since we do not route form exactly the beginning of each edge we need to
+  -- cut the source and target edges where the closest start and end points
+  -- (respectively) are located.
 
   sql := 'UNION SELECT
     ogc_fid AS id,
     source::int,
     -888::int AS target,
-    cost::float * ' || rec1.prec || ' AS cost
+    cost::float * ' || source.prec || ' AS cost
   FROM n50.n50_vegsti
-  WHERE ogc_fid = ' || rec1.id || '
+  WHERE ogc_fid = ' || source.id || '
 
   UNION SELECT
     ogc_fid AS id,
     -888::int AS source,
     target::int,
-    cost::float * (1 - ' || rec1.prec || ') AS cost
+    cost::float * (1 - ' || source.prec || ') AS cost
   FROM n50.n50_vegsti
-  WHERE ogc_fid = ' || rec1.id || '
+  WHERE ogc_fid = ' || source.id || '
 
   UNION SELECT
     ogc_fid AS id,
     source::int,
     -999::int AS target,
-    cost::float * ' || rec2.prec || ' AS cost
+    cost::float * ' || target.prec || ' AS cost
   FROM n50.n50_vegsti
-  WHERE ogc_fid = ' || rec2.id || '
+  WHERE ogc_fid = ' || target.id || '
 
   UNION SELECT
     ogc_fid AS id,
     -999::int AS source,
     target::int,
-    cost::float * (1 - ' || rec2.prec || ') AS cost
+    cost::float * (1 - ' || target.prec || ') AS cost
   FROM n50.n50_vegsti
-  WHERE ogc_fid = ' || rec2.id;
+  WHERE ogc_fid = ' || target.id;
 
-  IF (rec1.id = rec2.id) THEN
+  -- If the edge is long or the route is short we could end up with a shortest
+  -- route consisting of a single edge or a subset of it. We handle that by
+  -- inserting dummy edges into the pool of edges.
+
+  IF (source.id = target.id) THEN
     RAISE NOTICE '[ROUTER] source.id = target.id';
 
     sql := sql || 'UNION SELECT
       ogc_fid AS id,
       -888::int AS source,
       -999::int AS target,
-      cost::float * ' || rec1.prec || ' * ' || rec2.prec || ' AS cost
+      cost::float * ' || source.prec || ' * ' || target.prec || ' AS cost
     FROM n50.n50_vegsti
-    WHERE ogc_fid = ' || rec1.id || '
+    WHERE ogc_fid = ' || source.id || '
 
     UNION SELECT
       ogc_fid AS id,
       -999::int AS source,
       -888::int AS target,
-      cost::float * ' || rec2.prec || ' * ' || rec1.prec || ' AS cost
+      cost::float * ' || target.prec || ' * ' || source.prec || ' AS cost
     FROM n50.n50_vegsti
-    WHERE ogc_fid = ' || rec2.id;
+    WHERE ogc_fid = ' || target.id;
   END IF;
+
+  -- Since there are 1.5 million edges in the database we need to limit the
+  -- shortes path search to only the subset of edges that can reasonably match.
 
   sql := 'SELECT
     ogc_fid as id,
@@ -157,19 +166,31 @@ BEGIN
 
   ' || sql;
 
+  -- This is the actual SQL query that takes the edges and applies the
+  -- K-Shortest Path routing algorithm implemeted by `pgr_ksp`.
+
   sql := 'SELECT
     path.path_id,
     ST_LineMerge(ST_Collect(vegsti.geometri)) AS geom,
     SUM(path.cost) AS cost
   FROM
-    pgr_ksp(''' || sql || ''', -888, -999, ' || targets || ', directed:=false) AS path,
+    pgr_ksp(
+      ''' || sql || ''',
+      -888,
+      -999,
+      ' || targets || ',
+      directed:=false
+    ) AS path,
     n50.n50_vegsti AS vegsti
   WHERE path.edge = vegsti.ogc_fid
   GROUP BY path.path_id
   ORDER BY SUM(path.cost)';
 
+  -- Now, get the shortest paths and process them before returning
+
   FOR rec IN EXECUTE sql
   LOOP
+    -- Return if no route was found
     IF rec.geom IS NULL THEN
       RAISE NOTICE '[ROUTER] route geometry is NULL; returning';
       RETURN;
@@ -182,12 +203,19 @@ BEGIN
       RETURN;
     END IF;
 
+    -- Ok, so `rec.geom` is the combined geometry of the all edges in the
+    -- shortes path. However, since we rarly route from the exact beginning of
+    -- an edge we need to trim the route in both ends to the points where we
+    -- want the route to source and target.
+
+    -- Locate the point on the route closest to the source point
     prec1 := ST_LineLocatePoint(
       rec.geom, ST_Transform(
         ST_GeometryFromText('POINT(' || x1 || ' ' || y1 || ')', srid_in), srid_db
       )
     );
 
+    -- Locate the point on the route closest to the target point
     prec2 := ST_LineLocatePoint(
       rec.geom, ST_Transform(
         ST_GeometryFromText('POINT(' || x2 || ' ' || y2 || ')', srid_in), srid_db
@@ -196,8 +224,10 @@ BEGIN
 
     RAISE NOTICE '[ROUTING] path_id=%, start=%, end=%', rec.path_id, prec1, prec2;
 
-    -- ST_LineSubstring:  2nd arg must be smaller then 3rd arg
-    -- ST_Reverse: reverse if we detect that second is smaller than first
+    -- Now that we have the closest points in both ends we just need to trim the
+    -- route in order to fit our source and target requirements. Since the route can
+    -- be returned source to target or target to source we check reverse the route when
+    -- necessary before trimming.
 
     IF (prec2 < prec1) THEN
       rec.geom := ST_Reverse(ST_LineSubstring(rec.geom, prec2, prec1));
@@ -207,11 +237,12 @@ BEGIN
 
     RAISE NOTICE '[ROUTING] path_id=%, cost=%', rec.path_id, rec.cost;
 
-    -- Return record
+    -- Return the resulting record as defined in our function definition
     path_id := rec.path_id;
     cost := rec.cost;
     geom := rec.geom;
 
+    -- Continue processing the next shortest route
     RETURN NEXT;
 
   END LOOP;
