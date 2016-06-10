@@ -42,6 +42,15 @@ $ docker-compose run --rm psql ./util/pg_export.sh n50_vegsti
 * Update `N50_DATE` in `Dockerfile` and tag the release.
 * Push master and let Docker Hub do it's magic.
 
+## Custom Build
+
+```
+$ docker build -t turistforeningen/pgrouting-n50 \
+  --build-arg N50_URL=. \
+  --build-arg N50_DATE=yy-mm-dd \
+  .
+```
+
 ## Testing
 
 ```
