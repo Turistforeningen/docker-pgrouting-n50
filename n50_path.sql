@@ -184,13 +184,13 @@ BEGIN
 
     RAISE NOTICE '[ROUTING] start=% end=%', prec1, prec2;
 
-    -- ST_Line_SubString:  2nd arg must be smaller then 3rd arg
+    -- ST_LineSubstring:  2nd arg must be smaller then 3rd arg
     -- ST_Reverse: reverse if we detect that second is smaller than first
 
     IF (prec2 < prec1) THEN
-      rec.geom := ST_Reverse(ST_Line_SubString(rec.geom, prec2, prec1));
+      rec.geom := ST_Reverse(ST_LineSubstring(rec.geom, prec2, prec1));
     ELSE
-      rec.geom := ST_Line_SubString(rec.geom, prec1, prec2);
+      rec.geom := ST_LineSubstring(rec.geom, prec1, prec2);
     END IF;
 
     RAISE NOTICE '[ROUTING] cost=% length=%', rec.cost, ST_Length(rec.geom);
