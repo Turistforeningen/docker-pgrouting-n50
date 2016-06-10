@@ -20,6 +20,8 @@ CREATE OR REPLACE FUNCTION path(
   IN y2 double precision,
   IN path_buffer double precision DEFAULT 2000,
   IN point_buffer double precision DEFAULT 10,
+  IN targets integer DEFAULT 1,
+  OUT path_id integer,
   OUT cost double precision,
   OUT geom geometry
 ) RETURNS SETOF record AS
@@ -156,12 +158,15 @@ BEGIN
   ' || sql;
 
   sql := 'SELECT
-    ST_LineMerge(ST_Collect(geometri)) AS geom,
-    SUM(pgr_dijkstra.cost) AS cost
+    path.path_id,
+    ST_LineMerge(ST_Collect(vegsti.geometri)) AS geom,
+    SUM(path.cost) AS cost
   FROM
-    pgr_dijkstra(''' || sql || ''', -888, -999, false, false),
-    n50.n50_vegsti
-  WHERE id2 = ogc_fid';
+    pgr_ksp(''' || sql || ''', -888, -999, ' || targets || ', directed:=false) AS path,
+    n50.n50_vegsti AS vegsti
+  WHERE path.edge = vegsti.ogc_fid
+  GROUP BY path.path_id
+  ORDER BY SUM(path.cost)';
 
   FOR rec IN EXECUTE sql
   LOOP
@@ -182,7 +187,7 @@ BEGIN
       )
     );
 
-    RAISE NOTICE '[ROUTING] start=%, end=%', prec1, prec2;
+    RAISE NOTICE '[ROUTING] path_id=%, start=%, end=%', rec.path_id, prec1, prec2;
 
     -- ST_LineSubstring:  2nd arg must be smaller then 3rd arg
     -- ST_Reverse: reverse if we detect that second is smaller than first
@@ -193,9 +198,10 @@ BEGIN
       rec.geom := ST_LineSubstring(rec.geom, prec1, prec2);
     END IF;
 
-    RAISE NOTICE '[ROUTING] cost=%, length=%', rec.cost, ST_Length(rec.geom);
+    RAISE NOTICE '[ROUTING] path_id=%, cost=%', rec.path_id, rec.cost;
 
     -- Return record
+    path_id := rec.path_id;
     cost := rec.cost;
     geom := rec.geom;
 
