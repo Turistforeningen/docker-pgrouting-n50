@@ -33,7 +33,6 @@ function main {
     --schema "${S}" \
     --table "${T}" \
     --table "${T}_vertices_pgr" \
-    --function "path" \
     "${FILE}"
 
   echo "pg_restore: restoring indexes..."
