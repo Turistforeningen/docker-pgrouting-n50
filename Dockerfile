@@ -1,11 +1,14 @@
 FROM starefossen/pgrouting:9-2-2
 MAINTAINER Den Norske Turistforening (DNT) <opensource@turistforeningen.no>
 
-ENV N50_BASE "https://s3-eu-west-1.amazonaws.com/turistforeningen/postgis"
-ENV N50_DATE "15-08-04"
+ARG N50_URL
+ENV N50_URL ${N50_URL:-"https://s3-eu-west-1.amazonaws.com/turistforeningen/postgis"}
+
+ARG N50_DATE
+ENV N50_DATE ${N50_DATE:-"15-08-04"}
 
 # Download pgRouting compatible and pre-processed version of N50 data from S3
-ADD "${N50_BASE}/n50_vegsti-${N50_DATE}.backup" /n50_vegsti.backup
+ADD "${N50_URL}/n50_vegsti-${N50_DATE}.backup" /n50_vegsti.backup
 
 # Add the database init script which will be run when running the Docker Image
 # for the first time. This will not be run if an existing database exists.
