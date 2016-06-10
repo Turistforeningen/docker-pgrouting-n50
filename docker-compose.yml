@@ -13,4 +13,4 @@ services:
       - postgres
     links:
       - postgres
-    command: /bin/bash
+    entrypoint: psql -U postgres -h postgres -d postgres
