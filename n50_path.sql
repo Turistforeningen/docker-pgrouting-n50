@@ -10,6 +10,7 @@ CREATE OR REPLACE FUNCTION path(
   IN targets integer DEFAULT 1,
   IN srid_in integer DEFAULT 4326,
   IN srid_db integer DEFAULT 25833,
+  IN bbox double precision ARRAY[4] DEFAULT '{}',
   OUT path_id integer,
   OUT cost double precision,
   OUT geom geometry
@@ -20,6 +21,7 @@ DECLARE
   sql       text;
   point1    geometry;
   point2    geometry;
+  bounds    text;
   rec       record;
   source    record;
   target    record;
@@ -62,11 +64,34 @@ BEGIN
     RETURN;
   END IF;
 
-  -- Since we do not route form exactly the beginning of each edge we need to
-  -- cut the source and target edges where the closest start and end points
-  -- (respectively) are located.
+  -- Since there are millions of edges in the database we need to limit the
+  -- shortes path search to only the subset of edges that can reasonably match.
+  IF array_length(bbox, 1) != 0 THEN
+    RAISE NOTICE '[ROUTER] creating bounds based on bbox';
+    bounds := 'ST_Transform(ST_MakeEnvelope(
+        ' || bbox[1] || ', ' || bbox[2] || ',
+        ' || bbox[3] || ', ' || bbox[4] || ',
+        ' || srid_in || '
+    ), ' || srid_db || ')';
+  ELSE
+    RAISE NOTICE '[ROUTER] creating bounds based on path_buffer';
+    bounds := 'ST_Buffer(ST_Transform(ST_MakeEnvelope(
+      ' || x1 || ', ' || y1 || ', ' || x2 || ', ' || y2 || ', ' || srid_in || '
+    ), ' || srid_db || '), ' || path_buffer || ')';
+  END IF;
 
-  sql := 'UNION SELECT
+  -- Construct a query to find all edges that should be routed for shortest
+  -- path. This is not the shortest path routing but a set of edges that the
+  -- router will work on.
+  sql := 'SELECT
+    ogc_fid as id,
+    source::int,
+    target::int,
+    cost::float
+  FROM n50.n50_vegsti
+  WHERE geometri && ' || bounds || '
+
+  UNION SELECT
     ogc_fid AS id,
     source::int,
     -888::int AS target,
@@ -122,29 +147,6 @@ BEGIN
     WHERE ogc_fid = ' || target.id;
   END IF;
 
-  -- Since there are 1.5 million edges in the database we need to limit the
-  -- shortes path search to only the subset of edges that can reasonably match.
-
-  sql := 'SELECT
-    ogc_fid as id,
-    source::int,
-    target::int,
-    cost::float
-  FROM n50.n50_vegsti
-  WHERE geometri && ST_Buffer(
-    ST_LineFromMultiPoint(
-      ST_Transform(
-        ST_GeometryFromText($$MULTIPOINT(
-          ' || x1 || ' ' || y1 || ',
-          ' || x2 || ' ' || y2 || '
-        )$$, ' || srid_in || '),
-        ' || srid_db || '
-      )),
-    ' || path_buffer || '
-  )
-
-  ' || sql;
-
   -- This is the actual SQL query that takes the edges and applies the
   -- K-Shortest Path routing algorithm implemeted by `pgr_ksp`.
 
@@ -196,9 +198,9 @@ BEGIN
     RAISE NOTICE '[ROUTING] path_id=%, start=%, end=%', rec.path_id, prec1, prec2;
 
     -- Now that we have the closest points in both ends we just need to trim the
-    -- route in order to fit our source and target requirements. Since the route can
-    -- be returned source to target or target to source we check reverse the route when
-    -- necessary before trimming.
+    -- route in order to fit our source and target requirements. Since the route
+    -- can be returned source to target or target to source we check reverse the
+    -- route when necessary before trimming.
 
     IF (prec2 < prec1) THEN
       rec.geom := ST_Reverse(ST_LineSubstring(rec.geom, prec2, prec1));
