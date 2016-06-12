@@ -18,8 +18,8 @@ CREATE OR REPLACE FUNCTION path(
 $BODY$
 DECLARE
   sql       text;
-  point1    text;
-  point2    text;
+  point1    geometry;
+  point2    geometry;
   rec       record;
   source    record;
   target    record;
@@ -28,32 +28,30 @@ DECLARE
 
 BEGIN
   -- Find the closest edge (source) near the start (x1, y1)
-  point1 := 'ST_Transform(ST_GeometryFromText(
-    ''POINT(' || x1 || ' ' || y1 || ')'', ' || srid_in || '
-  ), ' || srid_db || ')';
+  point1 := ST_Transform(ST_SetSRID(ST_MakePoint(x1, y1), srid_in), srid_db);
 
   EXECUTE 'SELECT
       ogc_fid AS id,
-      ST_LineLocatePoint(geometri, ' || point1 || ') AS prec
+      ST_LineLocatePoint(geometri, $1) AS prec
     FROM n50.n50_vegsti
-    WHERE geometri && ST_Buffer(' || point1 || ', ' || point_buffer || ')
-    ORDER BY ST_Distance(geometri, ' || point1 || ')
+    WHERE geometri && ST_Buffer($1, ' || point_buffer || ')
+    ORDER BY ST_Distance(geometri, $1)
     LIMIT 1'
-  INTO source;
+  INTO source
+  USING point1;
 
   -- Find the closest edge (target) near the end (x2, y2)
-  point2 := 'ST_Transform(ST_GeometryFromText(
-    ''POINT(' || x2 || ' ' || y2 || ')'', ' || srid_in || '
-  ), ' || srid_db || ')';
+  point2 := ST_Transform(ST_SetSRID(ST_MakePoint(x2, y2), srid_in), srid_db);
 
   EXECUTE 'SELECT
       ogc_fid AS id,
-      ST_LineLocatePoint(geometri, ' || point2 || ') AS prec
+      ST_LineLocatePoint(geometri, $1) AS prec
     FROM n50.n50_vegsti
-    WHERE geometri && ST_Buffer(' || point2 || ', ' || point_buffer || ')
-    ORDER BY ST_Distance(geometri, ' || point2 || ')
+    WHERE geometri && ST_Buffer($1, ' || point_buffer || ')
+    ORDER BY ST_Distance(geometri, $1)
     LIMIT 1'
-  INTO target;
+  INTO target
+  USING point2;
 
   RAISE NOTICE '[ROUTER] source.id=% source.prec=%', source.id, source.prec;
   RAISE NOTICE '[ROUTER] target.id=% target.prec=%', target.id, target.prec;
@@ -190,18 +188,10 @@ BEGIN
     -- want the route to source and target.
 
     -- Locate the point on the route closest to the source point
-    prec1 := ST_LineLocatePoint(
-      rec.geom, ST_Transform(
-        ST_GeometryFromText('POINT(' || x1 || ' ' || y1 || ')', srid_in), srid_db
-      )
-    );
+    prec1 := ST_LineLocatePoint(rec.geom, point1);
 
     -- Locate the point on the route closest to the target point
-    prec2 := ST_LineLocatePoint(
-      rec.geom, ST_Transform(
-        ST_GeometryFromText('POINT(' || x2 || ' ' || y2 || ')', srid_in), srid_db
-      )
-    );
+    prec2 := ST_LineLocatePoint(rec.geom, point2);
 
     RAISE NOTICE '[ROUTING] path_id=%, start=%, end=%', rec.path_id, prec1, prec2;
 
