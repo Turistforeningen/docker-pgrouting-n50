@@ -56,6 +56,7 @@ $ docker build -t turistforeningen/pgrouting-n50 \
 ```
 $ docker-compose create postgres
 $ docker-compose start postgres
+$ docker-compose run --rm psql -f util/drop.sql
 $ docker-compose run --rm psql -f n50_path.sql
 $ docker-compose run --rm psql -f test.sql
 ```
