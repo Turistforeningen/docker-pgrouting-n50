@@ -29,13 +29,17 @@ $ docker run --name n50 turistforeningen/pgrouting-n50
 * Import and process `n50_custom.backup`:
 
 ```sh
-$ docker-compose run --rm psql ./util/pg_import.sh n50_vegsti ./data/n50_custom.backup
+$ docker-compose create postgres
+$ docker-compose start postgres
+
+$ docker-compose run --rm --entrypoint /bin/bash psql \
+    ./util/pg_import.sh n50_vegsti ./data/n50_custom.backup
 ```
 
 * Export processed N50 datafile:
 
 ```sh
-$ docker-compose run --rm psql ./util/pg_export.sh n50_vegsti
+$ docker-compose run --rm --entrypoint /bin/bash psql ./util/pg_export.sh n50_vegsti
 ```
 
 * Upload the processed N50 datafile AWS S3 bucket.
