@@ -52,8 +52,8 @@ EOSQL
     ALTER TABLE ${S}.${T} ADD COLUMN "source" integer;
     ALTER TABLE ${S}.${T} ADD COLUMN "target" integer;
     SELECT pgr_createTopology('${S}.${T}', 0.00001, 'geometri', 'ogc_fid');
-    CREATE INDEX n50_vegsti_source_idx ON ${S}.${T} ("source");
-    CREATE INDEX n50_vegsti_target_idx ON ${S}.${T} ("target");
+    CREATE INDEX IF NOT EXISTS n50_vegsti_source_idx ON ${S}.${T} ("source");
+    CREATE INDEX IF NOT EXISTS n50_vegsti_target_idx ON ${S}.${T} ("target");
 
     ALTER TABLE ${S}.${T} ADD COLUMN cost double precision;
     UPDATE ${S}.${T} SET cost = ST_Length(geometri);
