@@ -3,9 +3,11 @@ version: '2'
 services:
   postgres:
     image: turistforeningen/pgrouting-n50:latest
+    network_mode: 'bridge'
 
   psql:
     image: turistforeningen/pgrouting-n50:latest
+    network_mode: 'bridge'
     working_dir: /usr/src/app
     volumes:
       - .:/usr/src/app
