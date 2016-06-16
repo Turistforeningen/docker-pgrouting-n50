@@ -44,6 +44,8 @@ EOSQL
   echo "pg_restore: restoring indexes..."
   psql -U postgres -h postgres -d postgres <<-EOSQL
     DELETE FROM ${S}.${T} WHERE geometri IS NULL;
+    DELETE FROM ${S}.${T} WHERE ogc_fid IS NULL;
+
     CREATE INDEX n50_vegsti_geometri_gix ON ${S}.${T} USING GIST ("geometri");
     CREATE UNIQUE INDEX n50_vegsti_ogc_fid_idx ON ${S}.${T} ("ogc_fid");
 
