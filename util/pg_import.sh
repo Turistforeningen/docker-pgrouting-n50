@@ -27,6 +27,12 @@ function main {
   echo "pg_restore: creating schema ${S}..."
   psql -U postgres -h postgres -d postgres -c "CREATE SCHEMA IF NOT EXISTS ${S}"
 
+  echo "pg_restore: dropping \"${S}.${T}_vertices_pgr\"...";
+  psql -U postgres -h postgres -d postgres <<-EOSQL
+    DROP TABLE IF EXISTS ${S}.${T}_vertices_pgr;
+EOSQL
+  echo
+
   echo "pg_restore: restoring ${T} from ${FILE}...";
   pg_restore -U postgres -h postgres -d postgres \
     --verbose --clean --if-exists --no-owner --no-privileges \
