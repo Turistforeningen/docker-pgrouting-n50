@@ -5,7 +5,7 @@ ARG N50_URL
 ENV N50_URL ${N50_URL:-"https://s3-eu-west-1.amazonaws.com/turistforeningen/postgis"}
 
 ARG N50_DATE
-ENV N50_DATE ${N50_DATE:-"16-06-09"}
+ENV N50_DATE ${N50_DATE:-"16-06-14"}
 
 # Download pgRouting compatible and pre-processed version of N50 data from S3
 ADD "${N50_URL}/n50_vegsti-${N50_DATE}.backup" /n50_vegsti.backup
